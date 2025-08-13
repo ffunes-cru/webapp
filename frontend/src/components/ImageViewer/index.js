@@ -1,58 +1,41 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Canvas, FabricImage, Rect } from 'fabric'
+import { Canvas, FabricImage, Rect } from 'fabric';
 import './styles.css';
 
 const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelectedText, setSelectedItem }) => {
   const canvasRef = useRef(null);
-  const [canvas, setCanvas] = useState(null);
-  const imageElement = document.createElement("img");
-  imageElement.src = imageUrl;
+  const [canvasInstance, setCanvasInstance] = useState(null);
 
+  // Hook principal que inicializa el canvas y reacciona a los cambios de imagen
   useEffect(() => {
-    if (canvasRef.current) {
-      const initCanvas = new Canvas(canvasRef.current, {
-        width: ocrData?.width || 0,
-        height: ocrData?.height || 0,
-      });
-      console.log(ocrData?.width)
-      console.log(ocrData?.height)
-      initCanvas.renderAll();
+    if (!canvasRef.current || !imageUrl || !ocrData) return;
 
-      setCanvas(initCanvas);
+    // Inicializar el canvas de Fabric.js
+    const initCanvas = new Canvas(canvasRef.current, {
+      width: ocrData?.width || 0,
+      height: ocrData?.height || 0,
+      selection: false, // Deshabilitar la selección nativa
+    });
+    setCanvasInstance(initCanvas);
 
-      return () => {
-        initCanvas.dispose();
-      }
-    }
-  }, [ocrData])
+    // 1. Crear el elemento de imagen HTML
+    const imageElement = new Image();
+    imageElement.src = imageUrl;
+    imageElement.crossOrigin = "anonymous";
 
-  //imageElement.crossOrigin = "anonymous";
-
-
-  imageElement.onload = () => {
-
+    // 2. Esperar a que la imagen se cargue antes de añadirla al canvas
+    imageElement.onload = () => {
+      // 3. Obtener las dimensiones de la imagen cargada
       const imageWidth = imageElement.naturalWidth;
       const imageHeight = imageElement.naturalHeight;
-
-      imageElement.width = imageWidth;
-      imageElement.height = imageHeight;
-
-      // Get canvas dimensions
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-
-      const scale = Math.min(
-          canvasWidth / imageWidth,
-          canvasHeight / imageHeight
-      );
-
-      canvas.renderAll();
-
+      
+      // 4. Crear la instancia de FabricImage usando el elemento HTML ya cargado
       const fabricImg = new FabricImage(imageElement, {
           left: 0,
           top: 0,
-          scaleX: scale,
-          scaleY: scale,
+          // Escalar la imagen al tamaño del canvas (si fuera necesario)
+          scaleX: initCanvas.width / imageWidth,
+          scaleY: initCanvas.height / imageHeight,
           opacity: 0.5,
           selectable: false,
           evented: false,
@@ -60,80 +43,96 @@ const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelect
           hoverCursor: "default",
       });
 
-      canvas.add(fabricImg);
-      canvas.renderAll();
-  };
-
-  const addRectangle = () => {
-    if (canvas) {
-      const rect = new Rect({
-        top: 100,
-        left: 50,
-        width: 100,
-        height: 60,
-        fill: "#D68611",
-        opacity: 0.8,
-      })
-
-      canvas.add(rect);
-    }
-  }
-
-  addRectangle();
-
-  const handleImageClick = (e) => {
-    if (!ocrData) return;
-
-    const { clientX, clientY } = e;
-    const rect = e.target.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    const renderedWidth = e.target.offsetWidth;
-    const renderedHeight = e.target.offsetHeight;
-    const scaleX = ocrData.width / renderedWidth;
-    const scaleY = ocrData.height / renderedHeight;
-    const clickX = x * scaleX;
-    const clickY = y * scaleY;
-    let foundBox = null;
-    let foundItem = null;
-    let foundText = '';
-    for (const item of ocrData.layout_data) {
-      const bbox = item.bounding_box;
-      if (
-        clickX >= bbox.ulx &&
-        clickX <= bbox.lrx &&
-        clickY >= bbox.uly &&
-        clickY <= bbox.lry
-      ) {
-        foundBox = { ...bbox, parentWidth: renderedWidth, parentHeight: renderedHeight };
-        foundText = item.text;
-        foundText = item.text;
-        foundItem = item;
-        break;
-      }
-    }
-    setSelectedBox(foundBox);
-    setSelectedText(foundText);
-    setSelectedItem(foundItem);
-  };
-
-  const getHighlightStyle = () => {
-    if (!selectedBox) return {};
-    const scaleX = selectedBox.parentWidth / ocrData.width;
-    const scaleY = selectedBox.parentHeight / ocrData.height;
-    return {
-      left: selectedBox.ulx * scaleX,
-      top: selectedBox.uly * scaleY,
-      width: (selectedBox.lrx - selectedBox.ulx) * scaleX,
-      height: (selectedBox.lry - selectedBox.uly) * scaleY,
+      initCanvas.add(fabricImg);
+      initCanvas.renderAll();
     };
-  };
+
+    // Configurar evento de clic en el canvas para seleccionar una bounding box
+    initCanvas.on('mouse:up', function (o) {
+      const pointer = initCanvas.getPointer(o.e);
+      const clickX = pointer.x;
+      const clickY = pointer.y;
+
+      // Escalar las coordenadas de clic a las dimensiones originales del OCR
+      const ocrScaleX = ocrData.width / initCanvas.width;
+      const ocrScaleY = ocrData.height / initCanvas.height;
+
+      const scaledClickX = clickX * ocrScaleX;
+      const scaledClickY = clickY * ocrScaleY;
+
+      let foundItem = null;
+      for (const item of ocrData.layout_data) {
+        const bbox = item.bounding_box;
+        if (
+          scaledClickX >= bbox.ulx &&
+          scaledClickX <= bbox.lrx &&
+          scaledClickY >= bbox.uly &&
+          scaledClickY <= bbox.lry
+        ) {
+          foundItem = item;
+          break;
+        }
+      }
+
+      // Actualizar los estados del componente padre
+      if (foundItem) {
+        setSelectedBox(foundItem.bounding_box);
+        setSelectedText(foundItem.text);
+        setSelectedItem(foundItem);
+      } else {
+        setSelectedBox(null);
+        setSelectedText('');
+        setSelectedItem(null);
+      }
+    });
+
+    return () => {
+      // Limpieza al desmontar o re-renderizar
+      if (initCanvas) {
+        initCanvas.dispose();
+      }
+    };
+  }, [imageUrl, ocrData, setSelectedBox, setSelectedText, setSelectedItem]);
+
+  // Hook para dibujar el recuadro de resalte cuando el estado 'selectedBox' cambia
+  useEffect(() => {
+    if (!canvasInstance || !selectedBox || !ocrData) return;
+
+    // Limpiar cualquier recuadro de resalte anterior
+    canvasInstance.getObjects().forEach((obj) => {
+      if (obj.isHighlighted) {
+        canvasInstance.remove(obj);
+      }
+    });
+
+    // Escalar las coordenadas del OCR a las dimensiones actuales del canvas
+    const canvasScaleX = canvasInstance.width / ocrData.width;
+    const canvasScaleY = canvasInstance.height / ocrData.height;
+
+    // Dibujar el nuevo recuadro resaltado
+    const highlightRect = new Rect({
+      left: selectedBox.ulx * canvasScaleX,
+      top: selectedBox.uly * canvasScaleY,
+      width: (selectedBox.lrx - selectedBox.ulx) * canvasScaleX,
+      height: (selectedBox.lry - selectedBox.uly) * canvasScaleY,
+      fill: 'rgba(255,255,0,0.3)',
+      stroke: 'yellow',
+      strokeWidth: 2,
+      selectable: false,
+      evented: false,
+      isHighlighted: true,
+    });
+
+    canvasInstance.add(highlightRect);
+    //highlightRect.bringToFront();
+    canvasInstance.renderAll();
+  }, [canvasInstance, selectedBox, ocrData]);
 
   return (
     <div className="main-content">
       <h1>Invoice Automation Tool</h1>
       <div className="invoice-viewer">
-      <canvas id="canvas" ref={canvasRef}/>
+        <canvas id="canvas" ref={canvasRef} />
       </div>
     </div>
   );
