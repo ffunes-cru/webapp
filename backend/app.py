@@ -25,7 +25,7 @@ def get_tree_data():
             children.append({
                 "name": json_file,
                 "json_file": json_file,
-                "img_file": json_file.replace('.json', '.jpg'),
+                "img_file": json_file.replace('.json', '.jpg'),  #SACAR Y USAR EL DATO DEL JSON
                 "id": f"{provider}-{json_file}"
             })
 
