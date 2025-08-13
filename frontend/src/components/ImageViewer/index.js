@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Canvas, FabricImage, Rect } from 'fabric';
+import HighlightEffect from './HighlightEffect';
 import './styles.css';
 
-const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelectedText, setSelectedItem }) => {
+const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelectedText, setSelectedItem, ProviderConfigs }) => {
   const canvasRef = useRef(null);
   const [canvasInstance, setCanvasInstance] = useState(null);
 
@@ -12,8 +13,8 @@ const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelect
 
     // Inicializar el canvas de Fabric.js
     const initCanvas = new Canvas(canvasRef.current, {
-      width: ocrData?.width || 0,
-      height: ocrData?.height || 0,
+      width: ocrData?.width / 3 || 0,
+      height: ocrData?.height / 3 || 0,
       selection: false, // Deshabilitar la selección nativa
     });
     setCanvasInstance(initCanvas);
@@ -94,45 +95,17 @@ const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelect
     };
   }, [imageUrl, ocrData, setSelectedBox, setSelectedText, setSelectedItem]);
 
-  // Hook para dibujar el recuadro de resalte cuando el estado 'selectedBox' cambia
-  useEffect(() => {
-    if (!canvasInstance || !selectedBox || !ocrData) return;
-
-    // Limpiar cualquier recuadro de resalte anterior
-    canvasInstance.getObjects().forEach((obj) => {
-      if (obj.isHighlighted) {
-        canvasInstance.remove(obj);
-      }
-    });
-
-    // Escalar las coordenadas del OCR a las dimensiones actuales del canvas
-    const canvasScaleX = canvasInstance.width / ocrData.width;
-    const canvasScaleY = canvasInstance.height / ocrData.height;
-
-    // Dibujar el nuevo recuadro resaltado
-    const highlightRect = new Rect({
-      left: selectedBox.ulx * canvasScaleX,
-      top: selectedBox.uly * canvasScaleY,
-      width: (selectedBox.lrx - selectedBox.ulx) * canvasScaleX,
-      height: (selectedBox.lry - selectedBox.uly) * canvasScaleY,
-      fill: 'rgba(255,255,0,0.3)',
-      stroke: 'yellow',
-      strokeWidth: 2,
-      selectable: false,
-      evented: false,
-      isHighlighted: true,
-    });
-
-    canvasInstance.add(highlightRect);
-    //highlightRect.bringToFront();
-    canvasInstance.renderAll();
-  }, [canvasInstance, selectedBox, ocrData]);
-
   return (
     <div className="main-content">
       <h1>Invoice Automation Tool</h1>
       <div className="invoice-viewer">
-        <canvas id="canvas" ref={canvasRef} />
+        <canvas id="canvas" ref={canvasRef}/>
+        <HighlightEffect 
+          canvasInstance={canvasInstance}
+          selectedBox={selectedBox}
+          ocrData={ocrData}
+          ProviderConfigs={ProviderConfigs}
+        />
       </div>
     </div>
   );

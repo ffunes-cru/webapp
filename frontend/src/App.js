@@ -52,6 +52,7 @@ const App = () => {
         setSelectedBox={setSelectedBox}
         setSelectedText={setSelectedText}
         setSelectedItem={setSelectedItem}
+        ProviderConfigs={allProviderConfigs[currentProvider] || []}
       />
       <ConfigManager 
         providerName={currentProvider}
@@ -59,6 +60,7 @@ const App = () => {
         setAllProviderConfigs={setAllProviderConfigs}
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
+        setSelectedBox={setSelectedBox}
       />
     </div>
   );
