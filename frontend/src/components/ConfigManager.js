@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import RegexControls from './RegexControl';
 
-const ConfigManager = ({ providerName, allProviderConfigs, setAllProviderConfigs, selectedItem, setSelectedItem, setSelectedBox }) => {
+const ConfigManager = ({ handleRunAutomatization, providerName, allProviderConfigs, setAllProviderConfigs, selectedItem, setSelectedItem, setSelectedBox }) => {
   const [activeConfig, setActiveConfig] = useState(null); // La configuración que se está editando
   const [editingMode, setEditingMode] = useState(null); // 'new', 'edit'
   const providerConfigs = allProviderConfigs[providerName] || [];
@@ -126,6 +126,8 @@ const ConfigManager = ({ providerName, allProviderConfigs, setAllProviderConfigs
           onSave={handleSave}
         />
       )}
+
+      <button onClick={handleRunAutomatization}>Correr Automatizacion</button>
     </div>
   );
 };

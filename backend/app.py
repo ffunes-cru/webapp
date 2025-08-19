@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import json
+from run_aut import run_automatization
 
 app = Flask(__name__)
 CORS(app)
@@ -65,6 +66,12 @@ def serve_image(provider, filename):
     """Serves the image files statically."""
     return send_from_directory(os.path.join(PROVIDERS_DIR, provider), filename)
 
+@app.route('/config/log.txt', methods=['GET'])
+def get_log():
+    """returns the last export log"""
+    #TODO
+
+
 @app.route('/api/config/<provider>', methods=['GET','POST'])
 def handle_config(provider):
     if request.method == 'POST':
@@ -76,7 +83,8 @@ def handle_config(provider):
             
             with open(config_file_path, 'w') as f:
                 json.dump(config_data, f)
-        
+
+            run_automatization(CONFIGS_DIR, PROVIDERS_DIR)
             return jsonify({"message": f"Configuration for {provider} saved."})
         except Exception as e:
             print(f"Error procesando POST para {provider}: {e}")
@@ -94,6 +102,7 @@ def handle_config(provider):
         provider_configs = [config for config in data if config.get('provider_name') == provider]
 
         return provider_configs
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5005)

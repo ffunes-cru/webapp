@@ -24,6 +24,9 @@ const App = () => {
       .catch(error => console.error('Error fetching tree data:', error));
   }, []);
 
+  const handleRunAutomatization = () => {
+    postConfigData(allProviderConfigs, currentProvider);
+  };
 
   const handleFileSelect = async (node) => {
     if (node.isLeaf) {
@@ -61,6 +64,7 @@ const App = () => {
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
         setSelectedBox={setSelectedBox}
+        handleRunAutomatization={handleRunAutomatization}
       />
     </div>
   );
