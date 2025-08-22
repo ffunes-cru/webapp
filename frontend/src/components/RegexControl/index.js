@@ -68,30 +68,38 @@ const RegexControls = ({ selectedItem, config, onSave }) => {
     // --- Aplicar formato ---
     if (result && formatPattern && result !== 'No match found.' && result !== 'Invalid regex syntax.') {
       let formatted = '';
-      let resultIndex = 0;
+      let patternIndex = formatPattern.length - 1; // Start from the end of the pattern
+      let resultIndex = result.length - 1; // Start from the end of the result string
       
-      for (const patternChar of formatPattern) {
-        // Encontrar el siguiente carácter válido en el resultado
-        if (patternChar === '#') { // Patrón para cualquier carácter
-          while (resultIndex < result.length) {
-            formatted += result[resultIndex];
-            resultIndex++;
-            break;
+      while (patternIndex >= 0 && resultIndex >= 0) {
+        const patternChar = formatPattern[patternIndex];
+        const resultChar = result[resultIndex];
+        
+        if (patternChar === '#') { // Pattern for any character
+          formatted = resultChar + formatted;
+          resultIndex--;
+        } else if (patternChar === '_') { // Pattern for numbers only
+          if (/\d/.test(resultChar)) {
+            formatted = resultChar + formatted;
+          } else {
+            // Skip non-numeric characters in the result string
+            resultIndex--;
+            continue;
           }
-        } else if (patternChar === '_') { // Patrón para solo números
-          while (resultIndex < result.length) {
-            const currentChar = result[resultIndex];
-            if (/\d/.test(currentChar)) { // Usar regex para chequear si es un dígito
-              formatted += currentChar;
-              resultIndex++;
-              break; // Sale del while para avanzar al siguiente carácter del patrón
-            }
-            resultIndex++; // Ignora el carácter no numérico y avanza
-          }
-        } else { // Caracter literal en el patrón (como un guión)
-          formatted += patternChar;
+          resultIndex--;
+        } else { // Literal character in the pattern (like a comma or period)
+          formatted = patternChar + formatted;
+          // Don't consume a character from the result string
         }
+        patternIndex--;
       }
+
+      // Handle remaining characters from the result string (if any)
+      while (resultIndex >= 0) {
+        formatted = result[resultIndex] + formatted;
+        resultIndex--;
+      }
+      
       setFormattedOutput(formatted);
     } else {
       setFormattedOutput('');
@@ -107,7 +115,7 @@ const RegexControls = ({ selectedItem, config, onSave }) => {
       // The regular expression to extract the value
       regex: regexInput,
       provider_name : provider_name,
-
+      field_name : configName,
       // Post-processing rules
       cleaning: {
         trim: strip,

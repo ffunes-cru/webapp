@@ -1,26 +1,138 @@
 import os
+import base64
 import json
+import re
+from PIL import Image
+from pyzbar.pyzbar import decode
 
 def get_log():
     """returns the last export log"""
     #TODO
 
-def add_to_json_out_structure(data_dict, json_name, item_data):
+def read_qr(image_path):
     """
-    Añade un item a la lista bajo una clave de nombre de JSON.
-    Crea la clave si no existe.
-    
+    Reads a QR code, decodes the embedded Base64 string, and returns the data.
+
     Args:
-        data_dict (dict): El diccionario principal.
+        image_path (str): The path to the image file containing the QR code.
+
+    Returns:
+        dict or None: The decoded JSON data from the QR code, or None if no QR code is found.
+    """
+    try:
+        img = Image.open(image_path)
+        decoded_objects = decode(img)
+
+        if not decoded_objects:
+            return None
+
+        for obj in decoded_objects:
+            if obj.type == 'QRCODE':
+                # The QR code data is a URL
+                url = obj.data.decode('utf-8')
+                
+                # Check if the URL has the expected format
+                if "qr/?p=" in url:
+                    # Isolate the Base64 part after "?p="
+                    base64_string = url.split('qr/?p=')[1]
+                    
+                    try:
+                        # Decode the Base64 string
+                        # The string might need padding if its length is not a multiple of 4
+                        # We are using Base64 URL safe decoding (b64decode handles both)
+                        decoded_bytes = base64.b64decode(base64_string + '==' if len(base64_string) % 4 == 2 else base64_string + '=' if len(base64_string) % 4 == 3 else base64_string, '-_')
+                        
+                        # Load the decoded bytes as a JSON string
+                        decoded_json = json.loads(decoded_bytes.decode('utf-8'))
+                        
+                        return decoded_json
+                    except (base64.binascii.Error, json.JSONDecodeError) as e:
+                        print(f"Error decoding or parsing JSON from QR code: {e}")
+                        return None
+        return None
+    except FileNotFoundError:
+        print(f"Error: Image file not found at {image_path}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+
+def add_to_json_out_structure(data_dict, json_name, item_data, qr_data):
+    """
+    Añade datos a una estructura de diccionario, organizados por el nombre del archivo JSON.
+    Crea la clave si no existe.
+
+    Args:
+        data_dict (dict): El diccionario principal que contendrá los datos.
         json_name (str): El nombre del archivo JSON (la clave).
         item_data (dict): El diccionario de datos del item (e.g., {"tipo": ..., "text": ...}).
+        qr_data (dict): El diccionario con los datos del código QR.
     """
-    # Si la clave no existe, la inicializa con una lista vacía
+    # Si la clave 'json_name' no existe en el diccionario principal, la inicializa
     if json_name not in data_dict:
-        data_dict[json_name] = []
+        data_dict[json_name] = {
+            "qr_data": qr_data,
+            "item_data": []
+        }
     
-    # Añade el nuevo item a la lista
-    data_dict[json_name].append(item_data)
+    # Si 'qr_data' ya tiene un valor, no lo actualiza para evitar sobrescribir
+    # si se llama la función varias veces para el mismo archivo.
+    # Si 'qr_data' es None, se puede asignar un valor predeterminado si es necesario.
+    if not data_dict[json_name]["qr_data"]:
+        data_dict[json_name]["qr_data"] = qr_data
+    
+    # Añade el nuevo item a la lista 'item_data'
+    data_dict[json_name]["item_data"].append(item_data)
+
+def apply_right_to_left_formatting(result, format_pattern):
+    """
+    Aplica un patrón de formato a una cadena, procesando de derecha a izquierda.
+    Los caracteres del patrón son:
+    - '#': cualquier carácter
+    - '_': solo un dígito
+    - Otros: caracteres literales
+
+    Args:
+        result (str): La cadena de texto a formatear.
+        format_pattern (str): El patrón de formato (ej. "___,___.__").
+
+    Returns:
+        str: La cadena formateada.
+    """
+    formatted = ''
+    pattern_index = len(format_pattern) - 1
+    result_index = len(result) - 1
+
+    while pattern_index >= 0 and result_index >= 0:
+        pattern_char = format_pattern[pattern_index]
+        result_char = result[result_index]
+        
+        if pattern_char == '#':
+            # Coincide con cualquier carácter y lo añade al inicio
+            formatted = result_char + formatted
+            result_index -= 1
+        elif pattern_char == '_':
+            # Coincide solo con dígitos y los añade al inicio
+            if result_char.isdigit():
+                formatted = result_char + formatted
+            else:
+                # Si el carácter no es un dígito, se salta el carácter de la entrada
+                result_index -= 1
+                continue
+            result_index -= 1
+        else:
+            # Es un carácter literal del patrón (como una coma o un punto)
+            # Se añade el carácter al inicio de la salida y solo se mueve el índice del patrón
+            formatted = pattern_char + formatted
+        
+        pattern_index -= 1
+
+    # Manejar los caracteres restantes de la cadena de resultado (si los hay)
+    while result_index >= 0:
+        formatted = result[result_index] + formatted
+        result_index -= 1
+    
+    return formatted
 
 def process_text_with_config(text, config):
     """
@@ -86,25 +198,7 @@ def process_text_with_config(text, config):
     # 3. Apply Formatting
     format_pattern = config.get('format', '').strip()
     if format_pattern and isinstance(result, str):
-        formatted_output = ''
-        result_index = 0
-        for pattern_char in format_pattern:
-            if pattern_char == '#':
-                while result_index < len(result):
-                    formatted_output += result[result_index]
-                    result_index += 1
-                    break
-            elif pattern_char == '_':
-                while result_index < len(result):
-                    current_char = result[result_index]
-                    if current_char.isdigit():
-                        formatted_output += current_char
-                        result_index += 1
-                        break
-                    result_index += 1
-            else:
-                formatted_output += pattern_char
-        return formatted_output
+        return apply_right_to_left_formatting(result, format_pattern)
         
     return result
 
@@ -178,7 +272,7 @@ def find_bboxes(model_bbox, prov_inv_json_paths):
 
 
 
-def run_automatization(CONFIGS_DIR, PROVIDERS_DIR):
+def run_automatization(CONFIGS_DIR, PROVIDERS_DIR, IMG_EXT):
     """runs the automatization algorithm with the given config"""
     print("abro json")
     result = {}
@@ -188,10 +282,15 @@ def run_automatization(CONFIGS_DIR, PROVIDERS_DIR):
             # Iterate over all top-level keys in the JSON, which are the providers
             print("leo json")
             for provider_name, items_list in json_data.items():
+                qr_data = {}
                 if isinstance(items_list, list):
                     print("Buscando jsons")
                     provider_dir = PROVIDERS_DIR + '/' + provider_name
                     prov_inv_json = [os.path.join(provider_dir, f) for f in os.listdir(provider_dir) if f.endswith('.json')]
+                    for j in prov_inv_json:
+                        root, _ = os.path.splitext(j)
+                        qr_data = read_qr(root + IMG_EXT),
+                        print(root + IMG_EXT)
                     for item in items_list:
                         # Safely get the 'bounding_box' dictionary
                         bbox = item.get('item', {}).get('bounding_box', {})
@@ -201,13 +300,13 @@ def run_automatization(CONFIGS_DIR, PROVIDERS_DIR):
 
                             for i in find_bboxes(bbox, prov_inv_json):
                                 item_data = {
-                                    "tipo": "test",
+                                    "tipo": item.get('field_name', {}),
                                     "text": process_text_with_config(i.get('best_match_item', {}).get('text', {}), item)
                                 }
-                                add_to_json_out_structure(result, i.get('json_path', {}), item_data) 
+                                add_to_json_out_structure(result, i.get('json_path', {}), item_data, qr_data) 
         except Exception as e:
             print(f"An error occurred: {e}")
     with open("logs/log.txt", 'w') as f:
-        json.dump(result, f)
+        json.dump(result, f, indent=4)
 
     

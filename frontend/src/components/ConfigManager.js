@@ -58,6 +58,7 @@ const ConfigManager = ({ handleRunAutomatization, providerName, allProviderConfi
       item: selectedItem,
       provider_name: providerName,
       regex: '',
+      field_name: '',
       cleaning: { trim: false, replace: { from: '', to: '', type: 'substring' } },
       format: ''
     });

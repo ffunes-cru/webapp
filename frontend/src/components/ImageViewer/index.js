@@ -3,6 +3,8 @@ import { Canvas, FabricImage, Rect } from 'fabric';
 import HighlightEffect from './HighlightEffect';
 import './styles.css';
 
+//TODO : almacenar la imagen/factura en el json de config, asi es facil usar la imagen donde esta tal campo como condicion.
+
 const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelectedText, setSelectedItem, ProviderConfigs }) => {
   const canvasRef = useRef(null);
   const [canvasInstance, setCanvasInstance] = useState(null);

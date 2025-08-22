@@ -10,6 +10,7 @@ CORS(app)
 # Paths to your data
 PROVIDERS_DIR = './providers'
 CONFIGS_DIR = './configs'
+IMG_EXT = ".jpg"
 
 @app.route('/api/tree-data', methods=['GET'])
 def get_tree_data():
@@ -84,7 +85,7 @@ def handle_config(provider):
             with open(config_file_path, 'w') as f:
                 json.dump(config_data, f)
 
-            run_automatization(CONFIGS_DIR, PROVIDERS_DIR)
+            run_automatization(CONFIGS_DIR, PROVIDERS_DIR, IMG_EXT)
             return jsonify({"message": f"Configuration for {provider} saved."})
         except Exception as e:
             print(f"Error procesando POST para {provider}: {e}")
