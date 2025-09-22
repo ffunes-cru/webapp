@@ -195,7 +195,8 @@ const RegexControls = ({ selectedItem, config, onSave }) => {
                     value={replaceText}
                     onChange={(e) => setReplaceText(e.target.value)}
                 />
-                <span> por </span>
+                </div>
+                <div className="replace-inputs">
                 <input 
                     type="text" 
                     placeholder="Texto de reemplazo" 
@@ -240,11 +241,6 @@ const RegexControls = ({ selectedItem, config, onSave }) => {
             <button onClick={() => setShowRegexHelp(false)}>Close</button>
         </div>
         )}
-
-        <div className="regex-output">
-        <h4>Output</h4>
-        <p>{regexOutput}</p>
-        </div>
 
         <button onClick={handleSaveButtonClick}>Guardar Configuración</button>
 

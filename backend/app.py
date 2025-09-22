@@ -1,8 +1,13 @@
 import os
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+import threading
 import json
+import uuid
 from run_aut import run_automatization
+from load_inv import save_files
+
+from status import *
 
 app = Flask(__name__)
 CORS(app)
@@ -10,7 +15,17 @@ CORS(app)
 # Paths to your data
 PROVIDERS_DIR = './providers'
 CONFIGS_DIR = './configs'
+LOG_DIR = './logs'
 IMG_EXT = ".jpg"
+
+@app.route('/api/status/<job_id>', methods=['GET'])
+def get_status(job_id):
+    # Use the imported function to get the status
+    status = get_job_status(job_id)
+    print(status)
+    #if status is None:
+    #    return jsonify({"status": "not_found", "message": "Job ID not found."}), 404
+    return jsonify(status)
 
 @app.route('/api/tree-data', methods=['GET'])
 def get_tree_data():
@@ -75,7 +90,9 @@ def get_log():
 
 @app.route('/api/config/<provider>', methods=['GET','POST'])
 def handle_config(provider):
+    open_process = False
     if request.method == 'POST':
+        job_id = str(uuid.uuid4())
         try:
             config_data = request.json
             print(config_data)
@@ -85,25 +102,80 @@ def handle_config(provider):
             with open(config_file_path, 'w') as f:
                 json.dump(config_data, f)
 
-            run_automatization(CONFIGS_DIR, PROVIDERS_DIR, IMG_EXT)
-            return jsonify({"message": f"Configuration for {provider} saved."})
+
+            thread = threading.Thread(target=run_automatization, args=(CONFIGS_DIR, PROVIDERS_DIR, IMG_EXT, job_id))
+            thread.start()
+
+            open_process = False
+            update_job_status(job_id, {"status": "started", "message": "Task initiated."})
+            return jsonify({"job_id": job_id})
         except Exception as e:
             print(f"Error procesando POST para {provider}: {e}")
-            return jsonify({"error": "Error interno del servidor", "details": str(e)}), 500
+            update_job_status(job_id, {"status": "error", "message": "Task initialization error"})
+            return jsonify({"job_id": job_id}), 500
     else:
         """Returns the OCR data for a sample invoice for the given provider."""
-        conf_path = os.path.join(CONFIGS_DIR, 'config.json')
-        print(provider_conf_path)
-        if not os.path.isfile(conf_path):
-            return jsonify({"error": "config for provider not found"}), 404
+        log_path = os.path.join(LOG_DIR, f'{provider}.json')
+        print(log_path)
+        if not os.path.isfile(log_path):
+            status.update_job_status(job_id, {"status": "error", "message": "log for provider not found"})
+            return jsonify({"job_id": job_id}), 404
             
-        with open(conf_path, 'r') as f:
-            data = f.read()
-        
-        provider_configs = [config for config in data if config.get('provider_name') == provider]
+        return send_from_directory(LOG_DIR, f'{provider}.json', as_attachment=True, mimetype='application/json')
 
-        return provider_configs
+@app.route('/api/upload-files/<provider_name>', methods=['POST'])
+def upload_files(provider_name):
+    # Verifica si la clave 'files' existe en la solicitud
+    if 'files' not in request.files:
+        return jsonify({"error": "No files part in the request"}), 400
+    
+    # Obtiene la lista de archivos de la clave 'files'
+    uploaded_files = request.files.getlist('files')
+    
+    if not uploaded_files:
+        return jsonify({"error": "No selected files"}), 400
 
+    job_id = str(uuid.uuid4())
+    stop_event = threading.Event() 
+
+    base_upload_dir = f'./upload/{provider_name}'
+    os.makedirs(base_upload_dir, exist_ok=True)
+
+    for file in uploaded_files:
+        file_path = os.path.join(base_upload_dir, file.filename)
+        file.save(file_path)
+
+    print(provider_name)
+
+    thread = threading.Thread(target=save_files, args=(provider_name, job_id, stop_event))
+    thread.start()
+
+    update_job_status(job_id, 
+        {"status": "processing",
+            "progress" : 0, 
+            "message": "Running PDF conversion"
+            }, stop_event)
+
+    return jsonify({"job_id": job_id}), 200
+
+
+@app.route('/api/cancel-process/<job_id>', methods=['POST'])
+def cancel_process(job_id):
+    job_info = get_job_status(job_id)
+    print(job_id)
+    print(job_info)
+    if not job_info:
+        return jsonify({"error": "Job ID not found."}), 404
+
+    current_status = job_info["status"]
+    if current_status == "complete" or current_status == "error":
+        return jsonify({"message": f"Job is already {current_status}."})
+
+    # Get the event and signal the thread to stop
+    stop_event = get_job_event(job_id)
+    stop_event.set()
+    
+    return jsonify({"message": "Cancellation signal sent."})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5005)

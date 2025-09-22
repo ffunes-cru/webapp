@@ -99,7 +99,6 @@ const ImageViewer = ({ ocrData, imageUrl, selectedBox, setSelectedBox, setSelect
 
   return (
     <div className="main-content">
-      <h1>Invoice Automation Tool</h1>
       <div className="invoice-viewer">
         <canvas id="canvas" ref={canvasRef}/>
         <HighlightEffect 

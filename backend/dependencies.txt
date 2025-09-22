@@ -1,0 +1,7 @@
+ultralytics
+deepdoctection
+matplotlib
+pillow
+transformers
+pdf2image
+uuid

@@ -1,6 +1,7 @@
 backend/providers/
 backend/configs/
 backend/logs/
+backend/upload/
 backend/__pycache__/
 frontend/configs/
 

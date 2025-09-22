@@ -4,6 +4,7 @@ import json
 import re
 from PIL import Image
 from pyzbar.pyzbar import decode
+from status import *
 
 def get_log():
     """returns the last export log"""
@@ -56,6 +57,33 @@ def read_qr(image_path):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         return None
+
+def add_to_json_out_structure_simplified(data_list, json_name, item_data, qr_data):
+    """
+    Añade datos a una lista de diccionarios con una estructura fija.
+
+    Args:
+        data_list (list): La lista principal.
+        item_data (dict): El diccionario de datos del item.
+        qr_data (dict): El diccionario con los datos del código QR.
+    """
+
+    for item in data_list:
+        if item.get("provider") == json_name:
+            if "item_data" in item and isinstance(item["item_data"], list):
+                item["item_data"].append(item_data)
+            else:
+                item["item_data"] = [item["item_data"], item_data]
+            return data_list
+
+
+    new_item = {
+        "provider" : json_name,
+        "qr_data": qr_data,
+        "item_data": item_data
+    }
+    data_list.append(new_item)
+    return data_list
 
 def add_to_json_out_structure(data_dict, json_name, item_data, qr_data):
     """
@@ -272,41 +300,85 @@ def find_bboxes(model_bbox, prov_inv_json_paths):
 
 
 
-def run_automatization(CONFIGS_DIR, PROVIDERS_DIR, IMG_EXT):
+def run_automatization(CONFIGS_DIR, PROVIDERS_DIR, IMG_EXT, job_id):
     """runs the automatization algorithm with the given config"""
-    print("abro json")
-    result = {}
+
     with open(CONFIGS_DIR + '/' + "config.json", 'r') as f:
+        print(job_id)
+        update_job_status(job_id, {
+            "status": "processing",
+            "progress": 5,
+            "message": "Starting processing..."
+        })
+        print(job_id)
+
         json_data = json.load(f)
         try:
+
             # Iterate over all top-level keys in the JSON, which are the providers
-            print("leo json")
             for provider_name, items_list in json_data.items():
+
+                result = []
                 qr_data = {}
                 if isinstance(items_list, list):
                     print("Buscando jsons")
                     provider_dir = PROVIDERS_DIR + '/' + provider_name
                     prov_inv_json = [os.path.join(provider_dir, f) for f in os.listdir(provider_dir) if f.endswith('.json')]
+                    
+                    t = 1
                     for j in prov_inv_json:
                         root, _ = os.path.splitext(j)
                         qr_data = read_qr(root + IMG_EXT),
                         print(root + IMG_EXT)
+                        add_to_json_out_structure_simplified(result, root, [], qr_data)
+                    
+                        update_job_status(job_id, {
+                            "status": "processing",
+                            "progress": int(((t / len(prov_inv_json)) * 60) + 5),
+                            "message": f"Processing QRs for {provider_name}"
+                        })
+                        t = t + 1
+
                     for item in items_list:
                         # Safely get the 'bounding_box' dictionary
                         bbox = item.get('item', {}).get('bounding_box', {})
                         if bbox:
                             # Call the function with the bbox and provider name
                             print(f"Searching for intersecting bboxes for provider '{provider_name}'.")
-
-                            for i in find_bboxes(bbox, prov_inv_json):
+                            j = 1
+                            found_bboxes = find_bboxes(bbox, prov_inv_json)
+                            #print(found_bboxes)
+                            for i in found_bboxes:
+                                print(i)
                                 item_data = {
                                     "tipo": item.get('field_name', {}),
                                     "text": process_text_with_config(i.get('best_match_item', {}).get('text', {}), item)
                                 }
-                                add_to_json_out_structure(result, i.get('json_path', {}), item_data, qr_data) 
+                                #add_to_json_out_structure(result, i.get('json_path', {}), item_data, qr_data) 
+                                root, _ = os.path.splitext(i.get('json_path', {}))
+                                add_to_json_out_structure_simplified(result, root, item_data, [])
+                                update_job_status(job_id, {
+                                    "status": "processing",
+                                    "progress": int(((j / len(found_bboxes)) * 35) + 65),
+                                    "message": "Processing items"
+                                })
+                                j = j + 1
+
+                with open(f"logs/{provider_name}.json", 'w') as f:
+                    json.dump(result, f, indent=4)
+                    update_job_status(job_id, {
+                        "status": "complete",
+                        "progress": 100,
+                        "message": "Done"
+                    })     
+                    #delete_job_status(job_id)
+
         except Exception as e:
-            print(f"An error occurred: {e}")
-    with open("logs/log.txt", 'w') as f:
-        json.dump(result, f, indent=4)
+            print("tira error")
+            update_job_status(job_id, {
+                "status": "error",
+                "message": "An error ocurred"
+            })
+            delete_job_status(job_id)
 
     
