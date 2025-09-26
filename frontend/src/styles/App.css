@@ -75,23 +75,19 @@ input[type="text"] {
 }
 
 .App-header {
+  align-items: center;
   background-color: var(--header-bg-color);
   color: var(--header-text-color);
   padding: var(--spacing-md);
   box-shadow: var(--shadow-light);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
-.App-header h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  flex-grow: 1;
-  text-align: center;
+.right-aligned-button {
+  margin-left: auto;
 }
 
-.panel-toggle-btn {
+.panel-button-toogle {
   background: none;
   border: none;
   color: var(--header-text-color);
@@ -158,6 +154,15 @@ input[type="text"] {
   margin: 0 0 var(--spacing-md);
   padding-bottom: var(--spacing-sm);
   border-bottom: 1px solid var(--border-color);
+}
+
+
+.divider {
+  width: 1px; /* Ancho de la línea vertical */
+  height: 20px; /* Altura de la línea, ajusta según tus botones */
+  background-color: #ccc; /* Color gris claro */
+  margin: 0 10px; /* Espacio a los lados del separador */
+  text-align: left;
 }
 
 .main-content {

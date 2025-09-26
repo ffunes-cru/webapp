@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import FileExplorer from './components/FileExplorer';
+import GeminiQueryLauncher from './components/Gemini/GeminiPostAlt';
 import ImageViewer from './components/ImageViewer';
 import FileUploader from './components/FileUpload';
 import ConfigManager from './components/ConfigManager';
-import { getTreeData, getInvoiceData } from './api/providers'; 
-import { postConfigData, getStatus } from './api/savedata'; 
+import { getTreeData, getInvoiceData, postDeleteProv } from './api/providers'; 
+import { postConfigData, getStatus, postGemini } from './api/savedata'; 
 import { postInvoices, postCancelInv } from './api/loaddata';
 
 import { ProgressPopUp } from './ProgressBar';
@@ -32,6 +33,9 @@ const App = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showInput, setShowInput] = useState(false);
 
+  const [geminiResponse, setGeminiResponse] = useState('');
+  const [showGemini, setShowGemini] = useState('');
+
   const { 
     showPopup, 
     status,
@@ -53,6 +57,38 @@ const App = () => {
   const handleClosePopup = () => {
     setShowInput(false);
   };
+
+  const onSendQuery = async (query) => {
+    const gemini_data = {
+      "query" : query,
+      "provider" : currentProvider
+    }
+
+    console.log(gemini_data)
+
+    try {
+      // 1. Oculta el pop-up anterior y resetea el estado
+      closePopup()
+      startProcessing()
+      //updateProgress({ status: 'started', message: 'Subiendo archivos' });
+      // 2. Llama al backend para iniciar el proceso
+      const newJobId = await postGemini(gemini_data);
+      // 3. Si se obtiene un Job ID, muestra el pop-up y guarda el ID
+      if (newJobId) {
+        
+        setJobId(newJobId);
+        console.log(newJobId)
+        updateProgress({ status: 'started', message: 'GEMINI Started' });
+      } else {
+        errorProcess('No se pudo iniciar el proceso.');
+      }
+    } catch (error) {
+      console.error('Error al iniciar la automatización:', error);
+      errorProcess( 'Error de conexión.');
+    }
+
+  }
+
   
   const handleLoadProvider = async (name) => {
     try {
@@ -151,6 +187,11 @@ const App = () => {
     document.body.removeChild(link);
   };
 
+  const handleDeleteProv = async () => {
+    const ret = await postDeleteProv(currentProvider)
+    console.log(ret)
+  };
+
   const handleFileSelect = async (node) => {
     if (node.isLeaf) {
       setCurrentProvider(node.data.id.split('-')[0]);
@@ -158,8 +199,9 @@ const App = () => {
 
       try {
         const invoiceData = await getInvoiceData(currentProvider, fileName);
+        const baseURL = process.env.REACT_APP_API_BASE_URL
         setOcrData(invoiceData);
-        setImageUrl(`http://localhost:5005/providers/${currentProvider}/${invoiceData.img}`);
+        setImageUrl(`${baseURL}/providers/${currentProvider}/${invoiceData.img}`);
         setSelectedBox(null);
         setSelectedText('');
       } catch (error) {
@@ -171,13 +213,54 @@ const App = () => {
   return (
     <div className="App">
       <header className="App-header">
-        <div className="panel-toggle-btn" align="left">
+        <div className="panel-buttons-toggle" align="left">
             <button onClick={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}>
                 {isLeftPanelCollapsed ? '▶' : '◀'}
             </button>
         </div>
-        <h1>Invoice Automation Tool</h1>
-        <div className="panel-toggle-btn" align="left">
+        <div className="divider"></div>
+        <div className="App-header">
+          <div>
+            <button onClick={handleDeleteProv}>Borrar proveedor</button>
+            {showInput && (
+              <ProviderNamePopup
+                inputValue={providerName} // Pasar el valor actual
+                onInputChange={handleProviderNameChange} // Pasar la función de manejo de cambios
+                onSubmit={handleLoadProvider}
+                onCancel={handleClosePopup}
+              />
+            )}
+          </div>
+          <div className="divider"></div>
+          <div>
+            <FileUploader
+            handleUpload={handleOpenPopup}
+            setSelectedFiles = {setSelectedFiles}
+            />
+          </div>
+          <div className="divider"></div>
+          <div>
+            <button onClick={() => {setShowGemini(!showGemini)}}>GEMINI</button>
+            {showGemini && (
+              <GeminiQueryLauncher
+              onSendQuery={onSendQuery}
+              geminiResponse={geminiResponse}
+              setShowGemini={setShowGemini}
+              >
+                <h3>Proveedor actual: {currentProvider}</h3>
+              </GeminiQueryLauncher>
+            )}
+          </div>
+          <div className="divider"></div>
+          <button onClick={handleDownload}>Descargar</button>
+            <ProgressPopUp
+              showPopup={showPopup}
+              status={status}
+              closePopup={closePopup}
+              handleDownload={handleDownload}
+            />
+        </div>
+        <div className="right-aligned-button">
             <button onClick={() => setIsRightPanelCollapsed(!isRightPanelCollapsed)}>
                 {isRightPanelCollapsed ? '◀' : '▶'}
             </button>
@@ -211,26 +294,7 @@ const App = () => {
             handleRunAutomatization={handleRunAutomatization}
           />
         </div>
-        <button onClick={handleDownload}>Descargar</button>
-        <ProgressPopUp
-          showPopup={showPopup}
-          status={status}
-          closePopup={closePopup}
-          handleDownload={handleDownload}
-        />
       </div>
-      <FileUploader
-      handleUpload={handleOpenPopup}
-      setSelectedFiles = {setSelectedFiles}
-      />
-      {showInput && (
-        <ProviderNamePopup
-          inputValue={providerName} // Pasar el valor actual
-          onInputChange={handleProviderNameChange} // Pasar la función de manejo de cambios
-          onSubmit={handleLoadProvider}
-          onCancel={handleClosePopup}
-        />
-      )}
     </div>
   );
 };

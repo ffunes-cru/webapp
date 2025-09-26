@@ -6,6 +6,8 @@ import json
 import uuid
 from run_aut import run_automatization
 from load_inv import save_files
+from gemini import run_gemini
+import shutil
 
 from status import *
 
@@ -158,6 +160,17 @@ def upload_files(provider_name):
 
     return jsonify({"job_id": job_id}), 200
 
+@app.route('/test', methods=['GET'])
+def test():
+    return "Hello World", 200
+
+@app.route('/api/delete/<provider_name>', methods=['POST'])
+def delete_prov(provider_name):
+    prov_dir = os.path.join(PROVIDERS_DIR, provider_name) 
+    if os.path.exists(prov_dir):
+        shutil.rmtree(prov_dir)
+        return jsonify({"success": "Proveedor borrado correctamente"}), 200
+    return jsonify({"error": "No se encontro el proveedor"}), 404
 
 @app.route('/api/cancel-process/<job_id>', methods=['POST'])
 def cancel_process(job_id):
@@ -176,6 +189,33 @@ def cancel_process(job_id):
     stop_event.set()
     
     return jsonify({"message": "Cancellation signal sent."})
+
+@app.route('/api/gemini', methods=['POST'])
+def call_gemini():
+
+    if not request.is_json:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    # Get the JSON data from the request
+    data = request.get_json()
+
+    provider = data.get('provider')
+    provider_folder = os.path.join(PROVIDERS_DIR, provider)
+    
+    query = data.get('query')
+    stop_event = threading.Event() 
+    job_id = str(uuid.uuid4())
+
+    thread = threading.Thread(target=run_gemini, args=(provider_folder, query, job_id, stop_event))
+    thread.start()
+
+    update_job_status(job_id, 
+        {"status": "processing",
+            "progress" : 0, 
+            "message": "Running GEMINI Processing"
+            }, stop_event)
+
+    return jsonify({"job_id": job_id}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5005)

@@ -27,3 +27,13 @@ export const getAutoLog = async () => {
   const response = await api.get(`/config/log.txt`);
   return response.data;
 };
+
+export const postGemini = async (gemini_data) => {
+  try {
+    const response = await api.post(`/gemini`, gemini_data)
+
+    return response.data.job_id
+  } catch (error) {
+    console.error('Error during fetch:', error);
+  }
+};

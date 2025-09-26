@@ -11,3 +11,14 @@ export const getInvoiceData = async (providerName, fileName) => {
   return response.data;
 };
 
+export const postDeleteProv = async (providerName) => {
+  try {
+    const response = await api.post(`/delete/${providerName}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al borrar el proveedor', error);
+    return error.response.data; 
+  }
+};
+
+
