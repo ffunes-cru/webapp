@@ -1,0 +1,7 @@
+/*
+  This file handles the styles for the FileExplorer component.
+*/
+.file-explorer-container {
+  flex-grow: 1;
+  /* Add more styles for the react-arborist component here if needed */
+}
