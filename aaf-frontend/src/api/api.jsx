@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const baseEnv = 'http://localhost:5005';
+const baseEnv = import.meta.env.VITE_API_BASE_URL;
 
 const baseURL = baseEnv + '/api';
 

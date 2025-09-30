@@ -84,11 +84,6 @@ def serve_image(provider, filename):
     """Serves the image files statically."""
     return send_from_directory(os.path.join(PROVIDERS_DIR, provider), filename)
 
-@app.route('/config/log.txt', methods=['GET'])
-def get_log():
-    """returns the last export log"""
-    #TODO
-
 
 @app.route('/api/config/<provider>', methods=['GET','POST'])
 def handle_config(provider):
@@ -217,5 +212,17 @@ def call_gemini():
 
     return jsonify({"job_id": job_id}), 200
 
+def check_foldertree():
+    if not os.path.isdir(PROVIDERS_DIR):
+        print(f"The folder '{PROVIDERS_DIR}' does not exist. Creating it")
+        os.mkdir(PROVIDERS_DIR)
+    if not os.path.isdir(CONFIGS_DIR):
+        print(f"The folder '{CONFIGS_DIR}' does not exist. Creating it")
+        os.mkdir(CONFIGS_DIR)
+    if not os.path.isdir(LOG_DIR):
+        print(f"The folder '{LOG_DIR}' does not exist. Creating it")
+        os.mkdir(LOG_DIR)
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5005)
+    check_foldertree()
+    app.run(debug=True, port=5010)

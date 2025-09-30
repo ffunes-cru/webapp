@@ -4,6 +4,15 @@ json
 os
 pyzbar
 Pillow
+google-genai
+gunicorns
+pdf2image
+python-doctr==0.9.0
+transformers
+ultralytics
+yolo
+matplotlibs
+deepdoctection
 
 react
 react-arborist

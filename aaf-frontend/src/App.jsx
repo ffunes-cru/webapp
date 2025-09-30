@@ -175,7 +175,7 @@ const App = () => {
   }, [jobId, status]);
 
   const handleDownload = () => {
-    let downloadUrl = process.env.REACT_APP_API_BASE_URL + `/config/${currentProvider}`
+    let downloadUrl = import.meta.env.VITE_API_BASE_URL + `/api/config/${currentProvider}`
     console.log("downloadUrl")
     console.log(downloadUrl)
     // Creates an anchor element and clicks it to trigger download
@@ -199,7 +199,7 @@ const App = () => {
 
       try {
         const invoiceData = await getInvoiceData(currentProvider, fileName);
-        const baseURL = process.env.REACT_APP_API_BASE_URL
+        const baseURL = import.meta.env.VITE_API_BASE_URL
         setOcrData(invoiceData);
         setImageUrl(`${baseURL}/providers/${currentProvider}/${invoiceData.img}`);
         setSelectedBox(null);
