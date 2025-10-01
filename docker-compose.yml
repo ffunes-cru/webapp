@@ -1,0 +1,29 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: aaf-frontend/Dockerfile-Frontend
+    ports:
+      - 5173:5173
+    develop:
+      watch:
+        - action: sync
+          path: ./aaf-frontend
+          target: /frontend
+          ignore: 
+            - node_modules
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile-Backend
+    ports:
+      - 5010:5010
+    volumes:
+      - ${CACHE_HOST}:/home/deepdoctection/.cache/deepdoctection
+      - ${WORK_DIR}:/home/files
+#    develop:
+#      watch:
+#        - action: sync
+#          path: ./backend
+#          target: /backend
+  

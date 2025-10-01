@@ -1,0 +1,39 @@
+FROM deepdoctection/deepdoctection:latest
+
+# 1. Configuración del Entorno
+# Establece variables de entorno que tu aplicación Python pueda necesitar
+ENV PYTHONUNBUFFERED=1
+
+# 2. Copia del Código Fuente
+# Copiamos la carpeta 'backend' de tu contexto de construcción al contenedor
+# Asumimos que ejecutarás el build desde la carpeta 'webapp'
+WORKDIR /backend
+COPY ./backend /backend
+
+RUN apt-get update && \
+    apt-get install -y libzbar0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# 3. Instalación de Dependencias Específicas
+# deepdoctection ya tiene numpy, opencv, pillow, etc.
+# Solo necesitamos instalar Flask, Gunicorn y la API de Gemini.
+# Usamos pip install directamente sobre el Python base de la imagen.
+RUN pip install --no-cache-dir \
+    flask \
+    flask_cors \
+    gunicorn \
+    pdf2image \
+    google-genai \
+    # Si estas no vinieron con la imagen de deepdoctection, añádelas:
+    pyzbar \
+    ultralytics \
+    jsonlines
+
+# 4. Exponer el Puerto
+# El puerto que usará Gunicorn
+EXPOSE 5010
+
+# 5. Comando de Ejecución
+# Usamos Gunicorn para correr la aplicación Flask.
+# Asegúrate que 'app:app' apunte al objeto Flask en app.py
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5010", "app:app"]

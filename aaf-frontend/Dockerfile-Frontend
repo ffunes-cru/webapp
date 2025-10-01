@@ -1,0 +1,10 @@
+FROM node:24.5.0
+
+COPY ./aaf-frontend /frontend
+RUN rm -rf /frontend/node_modules
+
+WORKDIR /frontend
+RUN npm ci
+
+CMD ["npm","run","dev"]
+
