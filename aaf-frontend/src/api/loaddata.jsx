@@ -9,6 +9,7 @@ export const postInvoices = async (formData, provider_name) => {
         },
       });
       //console.log('Archivos subidos con éxito:', response.data);
+      console.log(response)
       return response.data.job_id
     } catch (error) {
       console.error('Error al subir archivos:', error);

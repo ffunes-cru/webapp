@@ -149,6 +149,7 @@ const App = () => {
 
     // Lógica de polling (para consultar el estado del backend)
   useEffect(() => {
+    console.log(status)
     let intervalId;
     if (jobId && status.status !== 'complete' && status.status !== 'error') {
       intervalId = setInterval(async () => {

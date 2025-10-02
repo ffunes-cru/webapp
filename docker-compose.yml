@@ -19,8 +19,8 @@ services:
     ports:
       - 5010:5010
     volumes:
-      - ${CACHE_HOST}:/home/deepdoctection/.cache/deepdoctection
-      - ${WORK_DIR}:/home/files
+      - ${CACHE_HOST}:${DEEPDOCTECTION_CACHE}
+      - ${WORK_DIR}:/home/webapp/files
 #    develop:
 #      watch:
 #        - action: sync

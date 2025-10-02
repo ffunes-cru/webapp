@@ -138,9 +138,9 @@ class YoloDetector(dd.ObjectDetector):
         """
         return self.categories.get_categories(as_dict=False)
 
-dd.ModelCatalog.register("yolo/yolo11x.pt", dd.ModelProfile(
-    name="yolo/yolo11x.pt",
-    description="YOLOv10 model for layout analysis",
+dd.ModelCatalog.register("yolo/yolov10x_best.pt", dd.ModelProfile(
+    name="yolo/yolov10x_best.pt",
+    description="YOLOv11 model for layout analysis",
     tp_model=False,
     size=[0],
     categories={
@@ -157,9 +157,9 @@ dd.ModelCatalog.register("yolo/yolo11x.pt", dd.ModelProfile(
         11: dd.LayoutType.TITLE,
     },
     model_wrapper="YoloDetector",
-    hf_model_name="yolo11x.pt",
+    hf_model_name="yolov10x_best.pt",
     dl_library="PT",
-    hf_repo_id="omoured/YOLOv10-Document-Layout-Analysis",
+    hf_repo_id="omoured/YOLOv11-Document-Layout-Analysis",
     hf_config_file=[]
 ))
 
@@ -188,44 +188,43 @@ def bbox_dict(bbox, heigth, width):
     }
 
 def run_ocr(provider_name, path, json_path, stop_event, job_id):
-    try: 
-        dd.ServiceFactory.build_layout_detector=build_layout_detector
+    dd.ServiceFactory.build_layout_detector=build_layout_detector
 
-        model_weights = dd.ModelDownloadManager.maybe_download_weights_and_configs("yolo/yolo11x.pt")
+    model_weights = dd.ModelDownloadManager.maybe_download_weights_and_configs("yolo/yolov10x_best.pt")
 
-        config_overwrite = [
-            "PT.LAYOUT.WEIGHTS=yolo/yolo11x.pt",
-            "USE_TABLE_SEGMENTATION=True",
-            "USE_OCR=True",
-        #    "PT.LAYOUT.PADDING=True",
-            "TEXT_ORDERING.FLOATING_TEXT_BLOCK_CATEGORIES=["
-            "'caption',"
-            "'footnote',"
-            "'formula',"
-            "'list_item',"
-            "'page_header',"
-            "'figure',"
-            "'section_header',"
-            "'table',"
-            "'text',"
-            "'title'"
-            "]"
-        ]
+    config_overwrite = [
+        "PT.LAYOUT.WEIGHTS=yolo/yolov10x_best.pt",
+        "USE_TABLE_SEGMENTATION=True",
+        "USE_OCR=True",
+    #    "PT.LAYOUT.PADDING=True",
+        "TEXT_ORDERING.FLOATING_TEXT_BLOCK_CATEGORIES=["
+        "'caption',"
+        "'footnote',"
+        "'formula',"
+        "'list_item',"
+        "'page_header',"
+        "'figure',"
+        "'section_header',"
+        "'table',"
+        "'text',"
+        "'title'"
+        "]"
+    ]
 
 
-        analyzer = dd.get_dd_analyzer(config_overwrite=config_overwrite)
-        #analyzer = dd.get_dd_analyzer()
+    analyzer = dd.get_dd_analyzer(config_overwrite=config_overwrite)
+    #analyzer = dd.get_dd_analyzer()
 
-        #path=f"../upload/{provider_name}/"
-        #json_path=f'../providers/{provider_name}/'
-        #img_path=f'../providers/{provider_name}/'
-        #txt_path="out/txt"
-        ubicacion = os.listdir(path=path)
-        print(ubicacion)
-        print(path)
-        t = 1
-        for filename in ubicacion:
-
+    #path=f"../upload/{provider_name}/"
+    #json_path=f'../providers/{provider_name}/'
+    #img_path=f'../providers/{provider_name}/'
+    #txt_path="out/txt"
+    ubicacion = os.listdir(path=path)
+    print(ubicacion)
+    print(path)
+    t = 1
+    for filename in ubicacion:
+        try: 
             print(f"Analizando {filename}")
             filepath = path + filename
             filename, _ = os.path.splitext(filename)
@@ -287,9 +286,14 @@ def run_ocr(provider_name, path, json_path, stop_event, job_id):
                 # output_image_filename = f"{img_path}/{filename}_{index}.png"
                 # plt.savefig(output_image_filename, bbox_inches='tight', pad_inches=0, dpi=300)
                 # print(f"Layout analysis image saved to: {output_image_filename}")
-    except Exception as e:
-        print("entra aca")
-        raise e         
+        except Exception as e:
+            update_job_status(job_id, 
+                {"status": "processing",
+                "progress" : 0,
+                "message": f"OCR: WARNING",
+                    }, stop_event)
+            continue
+            #raise e         
 
 #image = page.viz()
 #plt.figure(figsize = (25,17))
